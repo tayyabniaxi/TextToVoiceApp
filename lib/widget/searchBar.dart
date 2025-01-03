@@ -5,8 +5,9 @@ import 'package:new_wall_paper_app/style/app-color.dart';
 
 class SearchBars extends StatelessWidget {
   String hint;
-  TextEditingController controller;
-  SearchBars({required this.hint, required this.controller});
+
+  TextEditingController controllers;
+  SearchBars({required this.hint, required this.controllers});
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -16,7 +17,7 @@ class SearchBars extends StatelessWidget {
         borderRadius: BorderRadius.circular(25),
       ),
       child: TextField(
-        controller: controller,
+        controller: controllers,
         decoration: InputDecoration(
           hintText: hint,
           prefixIcon: const Icon(Icons.search, color: Colors.black),

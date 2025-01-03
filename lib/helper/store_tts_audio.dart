@@ -120,19 +120,16 @@ class AudioStorageHelper {
 class TTSAudioStorageHelper {
   static const String _audioListKey = 'tts_audio_recordings';
 
-  // Generate a unique hash for the text to use as an identifier
   static String generateTextHash(String text, {
     double? speechRate, 
     String? voiceName, 
     double? pitch, 
     double? volume
   }) {
-    // Create a comprehensive hash that includes all audio generation parameters
     final hashInput = '$text-$speechRate-$voiceName-$pitch-$volume';
     return md5.convert(utf8.encode(hashInput)).toString();
   }
 
-  // Get permanent documents directory for audio storage
   static Future<Directory> get _localAudioDirectory async {
     final directory = await getApplicationDocumentsDirectory();
     final audioDir = Directory('${directory.path}/TTSAudioRecordings');
@@ -144,7 +141,6 @@ class TTSAudioStorageHelper {
     return audioDir;
   }
 
-  // Save audio recording
   static Future<Map<String, dynamic>> saveAudioRecording({
     required String text, 
     required List<int> audioBytes,
@@ -154,18 +150,14 @@ class TTSAudioStorageHelper {
     double? pitch,
     double? volume,
   }) async {
-    // Generate filename based on hash
     final fileName = 'audio_$textHash.mp3';
 
-    // Get local audio directory
     final audioDir = await _localAudioDirectory;
     final filePath = '${audioDir.path}/$fileName';
 
-    // Save audio file
     final audioFile = File(filePath);
     await audioFile.writeAsBytes(audioBytes);
 
-    // Prepare recording metadata
     final recording = {
       'id': textHash,
       'text': text,
@@ -177,13 +169,10 @@ class TTSAudioStorageHelper {
       'volume': volume,
     };
 
-    // Save metadata to SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     
-    // Retrieve existing recordings
     final existingRecordingsJson = prefs.getStringList(_audioListKey) ?? [];
     
-    // Remove existing recording with same hash if exists
     final updatedRecordingsJson = existingRecordingsJson
         .where((json) {
           final recording = jsonDecode(json);
@@ -191,16 +180,13 @@ class TTSAudioStorageHelper {
         })
         .toList();
     
-    // Add new recording
     updatedRecordingsJson.add(jsonEncode(recording));
     
-    // Save updated list
     await prefs.setStringList(_audioListKey, updatedRecordingsJson);
 
     return recording;
   }
 
-  // Find existing recording
   static Future<Map<String, dynamic>?> findExistingRecording({
     required String text,
     double? speechRate,
@@ -211,7 +197,6 @@ class TTSAudioStorageHelper {
     final prefs = await SharedPreferences.getInstance();
     final recordingsJson = prefs.getStringList(_audioListKey) ?? [];
     
-    // Generate hash with all parameters
     final textHash = generateTextHash(
       text, 
       speechRate: speechRate,
@@ -220,7 +205,6 @@ class TTSAudioStorageHelper {
       volume: volume
     );
 
-    // Find a recording with matching hash
     final recordings = recordingsJson.map((r) => jsonDecode(r));
     
     return recordings.firstWhere(
@@ -229,7 +213,6 @@ class TTSAudioStorageHelper {
     );
   }
 
-  // Calculate word timings from stored metadata
   static List<Duration> calculateWordTimings(String text, Duration totalDuration) {
     List<String> words = text.split(' ');
     int totalCharacters = text.replaceAll(' ', '').length;
@@ -247,19 +230,15 @@ class TTSAudioStorageHelper {
     return startTimes;
   }
 
-  // Clear all audio recordings
   static Future<void> clearAllAudioRecordings() async {
     final prefs = await SharedPreferences.getInstance();
     
-    // Get list of current recordings
     final recordingsJson = prefs.getStringList(_audioListKey) ?? [];
     
-    // Delete all physical audio files
     for (var recordingJson in recordingsJson) {
       final recording = json.decode(recordingJson) as Map<String, dynamic>;
       final file = File(recording['filePath']);
       
-      // Delete file if it exists
       if (file.existsSync()) {
         try {
           await file.delete();
@@ -269,7 +248,6 @@ class TTSAudioStorageHelper {
       }
     }
 
-    // Clear the recordings list in SharedPreferences
     await prefs.remove(_audioListKey);
   }
 }

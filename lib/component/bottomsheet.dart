@@ -317,15 +317,21 @@ class OpenAllFuctinoBottomSheetWidget extends StatelessWidget {
                                 builder: (context, state) =>
                                     AudioFormatBottomSheet(
                                   onFormatSelect: (format) {
-                                    if (state.summarizedText.isNotEmpty &&
-                                        state.normarlText.isNotEmpty) {
-                                      context.read<TextToSpeechBloc>().add(
-                                            DownloadAudioWithFormat(
-                                                state.summarizedText.isEmpty
-                                                    ? state.normarlText
-                                                    : state.summarizedText,
-                                                format),
-                                          );
+                                    if (state.normarlText.isNotEmpty) {
+                                      state.summarizedText.isNotEmpty
+                                          ? context
+                                              .read<TextToSpeechBloc>()
+                                              .add(
+                                                DownloadAudioWithFormat(
+                                                    state.summarizedText,
+                                                    format),
+                                              )
+                                          : context
+                                              .read<TextToSpeechBloc>()
+                                              .add(
+                                                DownloadAudioWithFormat(
+                                                    state.normarlText, format),
+                                              );
                                     } else {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(

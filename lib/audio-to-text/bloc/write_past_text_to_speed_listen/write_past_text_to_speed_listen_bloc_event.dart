@@ -259,18 +259,13 @@ class UpdateTimePickerEvent extends TextToSpeechEvent {
   final int seconds;
   UpdateTimePickerEvent(this.hours, this.minutes, this.seconds);
 }
-// Add these events to your TextToSpeechEvent class
-
-// Event to load saved schedule
 class LoadSavedScheduleEvent extends TextToSpeechEvent {}
 
-// Event when schedule is loaded from storage
 class ScheduleLoadedEvent extends TextToSpeechEvent {
   final Map<String, dynamic> scheduleData;
   ScheduleLoadedEvent(this.scheduleData);
 }
 
-// Event to save current schedule
 class SaveCurrentScheduleEvent extends TextToSpeechEvent {
   final List<int> selectedDays;
   final String goalPerDay;

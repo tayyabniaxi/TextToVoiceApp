@@ -254,8 +254,7 @@ class _WriteAndTextPageState extends State<WriteAndTextPage> {
                       ),
                       widget.isConvertable
                           ? InkWell(
-                              onTap: () {
-                              },
+                              onTap: () {},
                               child: SvgPicture.asset(
                                   "assets/icons/bx_file.svg",
                                   color: state.isChangeColor
@@ -917,6 +916,12 @@ class _WriteAndTextPageState extends State<WriteAndTextPage> {
                                           .toDouble(),
                                     ),
                                 onChanged: (value) {
+                                  if (state.isPlaying) {
+                                  } else {
+                                    context
+                                        .read<TextToSpeechBloc>()
+                                        .add(TogglePlayPause());
+                                  }
                                   if (value <=
                                       state.originalAudioDuration.inMilliseconds
                                           .toDouble()) {
@@ -938,6 +943,11 @@ class _WriteAndTextPageState extends State<WriteAndTextPage> {
                                   Container(
                                     child: InkWell(
                                         onTap: () {
+                                          if (state.isPlaying) {
+                                            context
+                                                .read<TextToSpeechBloc>()
+                                                .add(TogglePlayPause());
+                                          }
                                           showLanguageSelectionBottomSheet(
                                               context);
                                         },
@@ -1254,6 +1264,46 @@ class _WriteAndTextPageState extends State<WriteAndTextPage> {
     };
 
     final searchController = TextEditingController();
+    String getVoiceDisplayName(String voiceName) {
+      try {
+        final parts = voiceName.split('-');
+        if (parts.length >= 2) {
+          // Combine voice type and variant for lookup
+          final voiceKey = "${parts[2]}-${parts[3]}"; // e.g., "Standard-A"
+          return voiceDisplayNames[voiceKey] ?? voiceName;
+        }
+      } catch (e) {
+        print('Error parsing voice name: $e');
+      }
+      return voiceName;
+    }
+
+    // Helper function to safely extract country name
+    String getCountryName(String voiceName) {
+      try {
+        final parts = voiceName.split('-');
+        if (parts.length >= 2) {
+          final countryCode = parts[1].toUpperCase();
+          return countryNames[countryCode] ?? countryCode;
+        }
+      } catch (e) {
+        print('Error extracting country code: $e');
+      }
+      return 'Unknown';
+    }
+
+    // Helper function to safely get country code for flag
+    String getFlagCountryCode(String voiceName) {
+      try {
+        final parts = voiceName.split('-');
+        if (parts.length >= 2) {
+          return parts[1].toLowerCase();
+        }
+      } catch (e) {
+        print('Error extracting flag country code: $e');
+      }
+      return 'unknown';
+    }
 
     showModalBottomSheet(
       shape: const RoundedRectangleBorder(
@@ -1315,7 +1365,7 @@ class _WriteAndTextPageState extends State<WriteAndTextPage> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                               const Text(
+                                const Text(
                                   'Select Voice',
                                   style: TextStyle(
                                     fontSize: 20,
@@ -1349,12 +1399,13 @@ class _WriteAndTextPageState extends State<WriteAndTextPage> {
                             padding:
                                 const EdgeInsets.symmetric(horizontal: 16.0),
                             child: SearchBars(
-                              controller: searchController,
+                              controllers: searchController,
                               hint: "Search voice",
                               // },
                             ),
                           ),
 
+// Search bar
                           height(size: 0.02),
 
                           Row(
@@ -1537,8 +1588,7 @@ class _WriteAndTextPageState extends State<WriteAndTextPage> {
                                                   backgroundColor:
                                                       Colors.grey[100],
                                                   onBackgroundImageError:
-                                                      (_, __) {
-                                                  },
+                                                      (_, __) {},
                                                   child: Text(
                                                     displayName[0],
                                                     style: TextStyle(

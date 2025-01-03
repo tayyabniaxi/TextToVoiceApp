@@ -497,7 +497,6 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
   }
 
   Future<void> _initializeAudioPlayer() async {
-    // Listen to player state changes
     _audioPlayer.playerStateStream.listen((playerState) {
       print('AudioPlayer state changed: ${playerState.processingState}');
       if (playerState.processingState == ProcessingState.completed) {
@@ -505,7 +504,6 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
       }
     });
 
-    // Listen to position updates
     _audioPlayer.positionStream.listen((position) {
       if (state.isPlaying) {
         emit(state.copyWith(
@@ -515,7 +513,6 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
       }
     });
 
-    // Listen to playing state changes
     _audioPlayer.playingStream.listen((playing) {
       print('AudioPlayer playing state: $playing');
       if (!playing && state.isPlaying) {
@@ -526,10 +523,7 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
       }
     });
 
-    // Listen to buffered position updates if needed
-    _audioPlayer.bufferedPositionStream.listen((bufferedPosition) {
-      // Handle buffered position if needed
-    });
+    _audioPlayer.bufferedPositionStream.listen((bufferedPosition) {});
   }
 
   void _onTextChanged(TextChanged event, Emitter<TextToSpeechState> emit) {
@@ -721,11 +715,9 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
         },
       ];
 
-      // Try each extraction strategy
       for (var strategy in extractionStrategies) {
         String summary = strategy();
 
-        // Additional validation
         if (_isValidSummary(summary)) return summary;
       }
 
@@ -906,7 +898,6 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
 
       emit(state.copyWith(isDownloading: true, downloadProgress: 0.0));
 
-      // Get the current playing audio data
       final ttsRequest = TTSRequest(
         input: TextInput(
             text: state.summarizedText.isEmpty
@@ -928,12 +919,10 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
       final audioContent = await _ttsRepo.textToSpeech(ttsRequest);
       final audioBytes = base64Decode(audioContent);
 
-      // Request storage permission
       if (!await Permission.storage.isGranted) {
         await Permission.storage.request();
       }
 
-      // Create directory
       final appDir = await getExternalStorageDirectory();
       if (appDir == null) throw Exception('Cannot access storage');
 
@@ -947,8 +936,7 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
       final filePath = '${qaiserDir.path}/$fileName';
       final file = File(filePath);
 
-      // Write data in chunks
-      final chunkSize = 1024 * 8; // 8KB chunks
+      final chunkSize = 1024 * 8;
       int offset = 0;
 
       while (offset < audioBytes.length) {
@@ -960,11 +948,9 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
         final progress = offset / audioBytes.length;
         emit(state.copyWith(downloadProgress: progress));
 
-        // Small delay to prevent buffer issues
         await Future.delayed(Duration(milliseconds: 10));
       }
 
-      // Notify media scanner
       await _scanFile(filePath);
 
       emit(state.copyWith(
@@ -1009,38 +995,98 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
 
   Future<void> _onWordSelected(
       WordSelected event, Emitter<TextToSpeechState> emit) async {
-    if (state.summarizedText.isEmpty ||
-        event.wordIndex >= state.summarizedText.split(" ").length) {
-      return;
-    } else if (state.normarlText.isEmpty ||
-        event.wordIndex >= state.normarlText.split(' ').length) {
-      return;
+    final text =
+        state.summarizedText.isEmpty ? state.normarlText : state.summarizedText;
+    final words = text.split(' ');
+    if (event.wordIndex >= words.length) return;
+
+    try {
+      context?.read<TextToSpeechBloc>().add(ScreenTouched());
+      allowManualScroll = true;
+
+      await _audioPlayer.stop();
+      _progressTimer?.cancel();
+
+      final Duration position = state.wordStartTimes[event.wordIndex];
+
+      final existingRecording =
+          await TTSAudioStorageHelper.findExistingRecording(
+        text: text,
+        speechRate: state.speechRate,
+        voiceName: state.selectedVoice?.name,
+        pitch: state.setPitch,
+        volume: state.setValume,
+      );
+
+      if (existingRecording != null) {
+        final audioFile = File(existingRecording['filePath']);
+        await _audioPlayer.setFilePath(audioFile.path);
+      } else {
+        final ttsRequest = TTSRequest(
+          input: TextInput(text: text),
+          voice: VoiceSelectionParams(
+            languageCode: state.selectedVoice?.languageCodes.first ?? 'en-US',
+            name: state.selectedVoice?.name ?? 'en-US-Standard-A',
+          ),
+          audioConfig: AudioConfig(
+            audioEncoding: 'MP3',
+            speakingRate: state.speechRate,
+            pitch: state.setPitch,
+            volumeGainDb:
+                state.setValume != null ? (state.setValume * 20) - 10 : null,
+          ),
+        );
+
+        final audioContent = await _ttsRepo.textToSpeech(ttsRequest);
+        final audioBytes = base64Decode(audioContent);
+
+        final tempDir = await getTemporaryDirectory();
+        final tempFile = File(
+            '${tempDir.path}/word_selection_${DateTime.now().millisecondsSinceEpoch}.mp3');
+        await tempFile.writeAsBytes(audioBytes);
+
+        await _audioPlayer.setFilePath(tempFile.path);
+
+        await TTSAudioStorageHelper.saveAudioRecording(
+          text: text,
+          audioBytes: audioBytes,
+          textHash: TTSAudioStorageHelper.generateTextHash(
+            text,
+            speechRate: state.speechRate,
+            voiceName: state.selectedVoice?.name,
+            pitch: state.setPitch,
+            volume: state.setValume,
+          ),
+          speechRate: state.speechRate,
+          voiceName: state.selectedVoice?.name,
+          pitch: state.setPitch,
+          volume: state.setValume,
+        );
+      }
+
+      emit(state.copyWith(
+        currentWordIndex: event.wordIndex,
+        currentPosition: position,
+        isPlaying: true,
+        isPaused: false,
+      ));
+
+      await _audioPlayer.seek(position);
+      await Future.delayed(const Duration(milliseconds: 100));
+      await _audioPlayer.play();
+      _startProgressTimer();
+
+      Future.delayed(const Duration(milliseconds: 100), () {
+        allowManualScroll = false;
+      });
+    } catch (e) {
+      print('Error in word selection: $e');
+      emit(state.copyWith(
+        isPlaying: false,
+        isPaused: true,
+        error: 'Error playing from selected word: $e',
+      ));
     }
-    context?.read<TextToSpeechBloc>().add(ScreenTouched());
-    allowManualScroll = true;
-
-    await _audioPlayer.stop();
-    _progressTimer?.cancel();
-
-    Duration position = state.wordStartTimes[event.wordIndex];
-
-    emit(state.copyWith(
-      currentWordIndex: event.wordIndex,
-      currentPosition: position,
-      isPlaying: true,
-      isPaused: false,
-    ));
-
-    await _audioPlayer.seek(position);
-
-    await Future.delayed(const Duration(milliseconds: 100));
-    await _audioPlayer.play();
-
-    Future.delayed(const Duration(milliseconds: 100), () {
-      allowManualScroll = false;
-    });
-
-    _startProgressTimer();
   }
 
   void isSelectLanguageOnn(
@@ -1120,6 +1166,7 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
     ));
   }
 
+  
   Future<void> _onSpeak(Speak event, Emitter<TextToSpeechState> emit) async {
     if (state.normarlText.isEmpty) return;
 
@@ -1132,7 +1179,6 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
               ? state.normarlText
               : state.summarizedText;
 
-      // Generate hash for the current audio parameters
       final textHash = TTSAudioStorageHelper.generateTextHash(
         textToSpeak,
         speechRate: state.speechRate,
@@ -1141,7 +1187,6 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
         volume: state.setValume,
       );
 
-      // Check if an existing recording exists
       final existingRecording =
           await TTSAudioStorageHelper.findExistingRecording(
         text: textToSpeak,
@@ -1152,107 +1197,12 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
       );
 
       if (existingRecording != null) {
-        // Use existing audio file
-        final audioFile = File(existingRecording['filePath']);
-
-        await _audioPlayer.setFilePath(audioFile.path);
-        Duration actualDuration = await _audioPlayer.duration ?? Duration.zero;
-
-        // Prepare word timings based on existing recording
-        List<Duration> wordStartTimes =
-            TTSAudioStorageHelper.calculateWordTimings(
-                textToSpeak, actualDuration);
-
-        // Calculate the word index based on the start position
-        int initialWordIndex = event.startFrom == Duration.zero
-            ? 0
-            : _findWordIndexForTime(event.startFrom, wordStartTimes);
-
-        emit(state.copyWith(
-          isPlaying: true,
-          isLoading: false,
-          originalAudioDuration: actualDuration,
-          wordStartTimes: wordStartTimes,
-          currentWordIndex: initialWordIndex,
-          currentPosition: event.startFrom,
-        ));
-
-        if (event.startFrom != Duration.zero) {
-          await _audioPlayer.seek(event.startFrom);
-        }
-        await _audioPlayer.play();
-        _startProgressTimer();
-
+        await _playExistingRecording(
+            existingRecording, textToSpeak, event.startFrom, emit);
         return;
       }
 
-      // If no existing recording, generate and save new audio
-      final chunks = _splitTextIntoChunks(textToSpeak, 600);
-      final totalChunks = chunks.length;
-
-      List<Uint8List> audioChunks = [];
-      List<Duration> globalWordTimings = [];
-      List<Future<(Uint8List, List<Duration>)>> chunkFutures = [];
-
-      for (int i = 0; i < chunks.length; i++) {
-        final (chunkText, chunkStartIndex) = chunks[i];
-        chunkFutures.add(_processChunk(chunkText, i, totalChunks, emit));
-      }
-
-      final results = await Future.wait(chunkFutures);
-
-      for (var (audioData, wordTimings) in results) {
-        audioChunks.add(audioData);
-        globalWordTimings.addAll(wordTimings);
-      }
-
-      final tempDir = await getTemporaryDirectory();
-      final tempFile = File(
-          '${tempDir.path}/tts_audio_${DateTime.now().millisecondsSinceEpoch}.mp3');
-      await tempFile
-          .writeAsBytes(audioChunks.expand((chunk) => chunk).toList());
-
-      // Save the audio recording
-      await TTSAudioStorageHelper.saveAudioRecording(
-        text: textToSpeak,
-        audioBytes: await tempFile.readAsBytes(),
-        textHash: textHash,
-        speechRate: state.speechRate,
-        voiceName: state.selectedVoice?.name,
-        pitch: state.setPitch,
-        volume: state.setValume,
-      );
-
-      await _audioPlayer.setFilePath(tempFile.path);
-      Duration actualDuration = await _audioPlayer.duration ?? Duration.zero;
-
-      int initialWordIndex =
-          _findWordIndexForTime(event.startFrom, globalWordTimings);
-      List<Duration> wordStartTimes =
-          _calculateWordTimings(textToSpeak, actualDuration);
-
-      emit(state.copyWith(
-        isPlaying: true,
-        isLoading: false,
-        originalAudioDuration: actualDuration,
-        wordStartTimes: wordStartTimes,
-        currentWordIndex: initialWordIndex,
-        currentPosition: event.startFrom,
-      ));
-
-      Future.microtask(() {
-        if (context != null) {
-          scrollToHighlightedWord(context!, initialWordIndex);
-        }
-      });
-
-      if (event.startFrom != Duration.zero) {
-        await _audioPlayer.seek(event.startFrom);
-      }
-      await _audioPlayer.play();
-      _startProgressTimer();
-      final initialPosition = _audioPlayer.position;
-      _updateHighlightedWord(initialPosition);
+      await _processAndStoreNewRecording(textToSpeak, event.startFrom, emit);
     } catch (e) {
       print('Error in _onSpeak: $e');
       emit(state.copyWith(
@@ -1260,6 +1210,130 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
         error: 'Error generating speech: $e',
       ));
     }
+  }
+
+  Future<void> _playExistingRecording(Map<String, dynamic> recording,
+      String text, Duration startFrom, Emitter<TextToSpeechState> emit) async {
+    final audioFile = File(recording['filePath']);
+    await _audioPlayer.setFilePath(audioFile.path);
+
+    final actualDuration = await _audioPlayer.duration ?? Duration.zero;
+    final wordStartTimes = _calculateWordTimings(text, actualDuration);
+    final initialWordIndex = startFrom == Duration.zero
+        ? 0
+        : _findWordIndexForTime(startFrom, wordStartTimes);
+
+    if (startFrom > Duration.zero) {
+      await _audioPlayer.seek(startFrom);
+    }
+
+    emit(state.copyWith(
+      isPlaying: true,
+      isLoading: false,
+      originalAudioDuration: actualDuration,
+      wordStartTimes: wordStartTimes,
+      currentWordIndex: initialWordIndex,
+      currentPosition: startFrom,
+    ));
+
+    await _audioPlayer.play();
+    _startProgressTimer();
+  }
+
+  Future<void> _processAndStoreNewRecording(
+      String text, Duration startFrom, Emitter<TextToSpeechState> emit) async {
+    const int maxChunkSize = 4000;
+    final chunks = _splitTextIntoChunks(text, maxChunkSize);
+    List<Uint8List> audioChunks = [];
+
+    for (int i = 0; i < chunks.length; i++) {
+      emit(state.copyWith(loadingProgress: i / chunks.length));
+
+      final chunk = chunks[i];
+      final audioBytes = await _generateAudioForChunk(chunk, emit);
+      audioChunks.add(audioBytes);
+    }
+
+    final combinedAudio = await _combineAndSaveAudio(text, audioChunks);
+    await _playAndSetupAudio(combinedAudio, text, startFrom, emit);
+  }
+
+  Future<void> _playAndSetupAudio(File audioFile, String text,
+      Duration startFrom, Emitter<TextToSpeechState> emit) async {
+    await _audioPlayer.setFilePath(audioFile.path);
+    final actualDuration = await _audioPlayer.duration ?? Duration.zero;
+    final wordStartTimes = _calculateWordTimings(text, actualDuration);
+    final initialWordIndex = startFrom == Duration.zero
+        ? 0
+        : _findWordIndexForTime(startFrom, wordStartTimes);
+
+    if (startFrom > Duration.zero) {
+      await _audioPlayer.seek(startFrom);
+    }
+
+    emit(state.copyWith(
+      isPlaying: true,
+      isLoading: false,
+      originalAudioDuration: actualDuration,
+      wordStartTimes: wordStartTimes,
+      currentWordIndex: initialWordIndex,
+      currentPosition: startFrom,
+    ));
+
+    await _audioPlayer.play();
+    _startProgressTimer();
+  }
+
+  Future<Uint8List> _generateAudioForChunk(
+      String text, Emitter<TextToSpeechState> emit) async {
+    final ttsRequest = TTSRequest(
+      input: TextInput(text: text),
+      voice: VoiceSelectionParams(
+        languageCode: state.selectedVoice?.languageCodes.first ?? 'en-US',
+        name: state.selectedVoice?.name ?? 'en-US-Standard-A',
+      ),
+      audioConfig: AudioConfig(
+        audioEncoding: 'MP3',
+        speakingRate: state.speechRate,
+        pitch: state.setPitch,
+        volumeGainDb:
+            state.setValume != null ? (state.setValume * 20) - 10 : null,
+      ),
+    );
+
+    final audioContent = await _ttsRepo.textToSpeech(ttsRequest);
+    return base64Decode(audioContent);
+  }
+
+  Future<File> _combineAndSaveAudio(
+      String text, List<Uint8List> audioChunks) async {
+    final BytesBuilder builder = BytesBuilder();
+    for (var chunk in audioChunks) {
+      builder.add(chunk);
+    }
+    final combinedBytes = builder.takeBytes();
+
+    await TTSAudioStorageHelper.saveAudioRecording(
+      text: text,
+      audioBytes: combinedBytes,
+      textHash: TTSAudioStorageHelper.generateTextHash(
+        text,
+        speechRate: state.speechRate,
+        voiceName: state.selectedVoice?.name,
+        pitch: state.setPitch,
+        volume: state.setValume,
+      ),
+      speechRate: state.speechRate,
+      voiceName: state.selectedVoice?.name,
+      pitch: state.setPitch,
+      volume: state.setValume,
+    );
+
+    final tempDir = await getTemporaryDirectory();
+    final tempFile = File(
+        '${tempDir.path}/combined_audio_${DateTime.now().millisecondsSinceEpoch}.mp3');
+    await tempFile.writeAsBytes(combinedBytes);
+    return tempFile;
   }
 
   Future<(Uint8List, List<Duration>)> _processChunk(String chunkText,
@@ -1310,25 +1384,28 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
     }
   }
 
-  List<(String, int)> _splitTextIntoChunks(String text, int maxBytes) {
-    List<(String, int)> chunks = [];
-    String currentChunk = '';
-    int wordCount = 0;
-    int chunkStartIndex = 0;
 
-    for (String word in text.split(' ')) {
-      if ((currentChunk + word).length * 2 > maxBytes) {
-        chunks.add((currentChunk.trim(), chunkStartIndex));
-        currentChunk = word + ' ';
-        chunkStartIndex = wordCount;
+  List<String> _splitTextIntoChunks(String text, int maxChunkSize) {
+    List<String> chunks = [];
+    List<String> sentences = text.split(RegExp(r'(?<=[.!?])\s+'));
+    String currentChunk = '';
+
+    for (String sentence in sentences) {
+      if ((currentChunk + sentence).length <= maxChunkSize) {
+        currentChunk += sentence + ' ';
       } else {
-        currentChunk += word + ' ';
+        if (currentChunk.isNotEmpty) {
+          chunks.add(currentChunk.trim());
+          currentChunk = sentence + ' ';
+        } else {
+          
+          chunks.add(sentence.trim());
+        }
       }
-      wordCount++;
     }
 
     if (currentChunk.isNotEmpty) {
-      chunks.add((currentChunk.trim(), chunkStartIndex));
+      chunks.add(currentChunk.trim());
     }
 
     return chunks;
@@ -1341,14 +1418,18 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
   List<Duration> _calculateWordTimings(String text, Duration totalDuration) {
     List<String> words = text.split(' ');
     int totalCharacters = text.replaceAll(' ', '').length;
+
+    // Calculate milliseconds per character based on total duration
     double msPerCharacter = totalDuration.inMilliseconds / totalCharacters;
 
     List<Duration> startTimes = [Duration.zero];
     Duration cumulativeDuration = Duration.zero;
 
     for (String word in words) {
-      cumulativeDuration +=
-          Duration(milliseconds: (word.length * msPerCharacter).round());
+      // Add the word duration based on its length
+      cumulativeDuration += Duration(
+        milliseconds: (word.length * msPerCharacter).round(),
+      );
       startTimes.add(cumulativeDuration);
     }
 
@@ -1357,13 +1438,16 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
 
   int _findWordIndexForTime(
       Duration elapsedTime, List<Duration> wordStartTimes) {
+    if (wordStartTimes.isEmpty) return 0;
+
     for (int i = 0; i < wordStartTimes.length - 1; i++) {
       if (elapsedTime >= wordStartTimes[i] &&
           elapsedTime < wordStartTimes[i + 1]) {
         return i;
       }
     }
-    return wordStartTimes.length - 1;
+
+    return math.min(wordStartTimes.length - 1, state.currentWordIndex);
   }
 
   void _onInitializeWordKeys(
@@ -1439,34 +1523,31 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
     _updateHighlightedWord(_audioPlayer.position);
 
     _progressTimer =
-        Timer.periodic(const Duration(milliseconds: 16), (timer) async {
+        Timer.periodic(const Duration(milliseconds: 50), (timer) async {
       if (!state.isPlaying) {
         timer.cancel();
         return;
       }
 
       final currentPosition = _audioPlayer.position;
-      if (currentPosition != null) {
-        final duration = await _audioPlayer.duration ?? Duration.zero;
-        final progress = duration.inMilliseconds > 0
-            ? (currentPosition.inMilliseconds / duration.inMilliseconds * 100)
-                .toInt()
-            : 0;
+      final duration = await _audioPlayer.duration ?? Duration.zero;
+
+      if (duration.inMilliseconds > 0) {
+        final progress =
+            currentPosition.inMilliseconds / duration.inMilliseconds;
 
         emit(state.copyWith(
           currentPosition: currentPosition,
-          loadingProgress: progress / 100,
+          loadingProgress: progress,
         ));
 
-        // Update highlighted word and ensure it's visible
         _updateHighlightedWord(currentPosition);
         if (context != null) {
           scrollToHighlightedWord(context!, state.currentWordIndex);
         }
       }
 
-      if (currentPosition != null &&
-          currentPosition >= state.originalAudioDuration) {
+      if (currentPosition >= state.originalAudioDuration) {
         add(Stop());
         timer.cancel();
       }
@@ -1822,7 +1903,7 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
             final String chunk = entry.value;
             final bool isHighlighted = index == currentChunkIndex;
 
-            final List<String> chunkWords = chunk.split(' ');
+            final List<String> chunkWords = chunk.split('/n');
             final int startWordIndex = chunks
                 .take(index)
                 .map((c) => c.split(' ').length)
@@ -1969,18 +2050,217 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
 
   void _onSelectVoice(
       SelectVoiceEvent event, Emitter<TextToSpeechState> emit) async {
-    if (state.isPlaying) {
-      await _audioPlayer.stop();
-      _progressTimer?.cancel();
-    }
+    final currentPosition = _audioPlayer.position;
+    final wasPlaying = state.isPlaying;
+    final textToSpeak =
+        state.summarizedText.isEmpty ? state.normarlText : state.summarizedText;
 
-    emit(state.copyWith(
-      selectedVoice: event.voice,
-      languageCode: event.voice.languageCodes.first,
-      isPlaying: false,
-      isPaused: false,
-      currentPosition: Duration.zero,
-    ));
+    if (textToSpeak.isEmpty) return;
+
+    try {
+      // Stop current playback
+      if (wasPlaying) {
+        await _audioPlayer.pause();
+      }
+
+      emit(state.copyWith(
+        selectedVoice: event.voice,
+        languageCode: event.voice.languageCodes.first,
+        isLoading: true,
+        isPlaying: false,
+        isPaused: true,
+      ));
+
+      const maxChunkLength = 4000;
+      List<String> textChunks = [];
+
+      if (textToSpeak.length > maxChunkLength) {
+        int startIndex = 0;
+        while (startIndex < textToSpeak.length) {
+          int endIndex =
+              math.min(startIndex + maxChunkLength, textToSpeak.length);
+          textChunks.add(textToSpeak.substring(startIndex, endIndex));
+          startIndex += maxChunkLength;
+        }
+      } else {
+        textChunks = [textToSpeak];
+      }
+
+      List<Uint8List> audioChunks = [];
+      double totalProgress = 0;
+
+      for (int i = 0; i < textChunks.length; i++) {
+        final chunk = textChunks[i];
+        final ttsRequest = TTSRequest(
+          input: TextInput(text: chunk),
+          voice: VoiceSelectionParams(
+            languageCode: event.voice.languageCodes.first,
+            name: event.voice.name,
+          ),
+          audioConfig: AudioConfig(
+            audioEncoding: 'MP3',
+            speakingRate: state.speechRate,
+            pitch: state.setPitch,
+            volumeGainDb:
+                state.setValume != null ? (state.setValume * 20) - 10 : null,
+          ),
+        );
+
+        final audioContent = await _ttsRepo.textToSpeech(ttsRequest);
+        final audioBytes = base64Decode(audioContent);
+        audioChunks.add(audioBytes);
+
+        totalProgress = (i + 1) / textChunks.length;
+        emit(state.copyWith(loadingProgress: totalProgress));
+      }
+
+      final BytesBuilder builder = BytesBuilder();
+      for (var chunk in audioChunks) {
+        builder.add(chunk);
+      }
+      final combinedAudioBytes = builder.takeBytes();
+
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File(
+          '${tempDir.path}/voice_change_${DateTime.now().millisecondsSinceEpoch}.mp3');
+      await tempFile.writeAsBytes(combinedAudioBytes);
+
+      await _audioPlayer.setFilePath(tempFile.path);
+      final actualDuration = await _audioPlayer.duration ?? Duration.zero;
+
+      final currentProgress = currentPosition.inMilliseconds /
+          (state.originalAudioDuration.inMilliseconds == 0
+              ? 1
+              : state.originalAudioDuration.inMilliseconds);
+
+      final newPosition = Duration(
+          milliseconds:
+              (actualDuration.inMilliseconds * currentProgress).round());
+      final wordStartTimes = _calculateWordTimings(textToSpeak, actualDuration);
+
+      await _audioPlayer.setSpeed(state.speechRate);
+
+      if (newPosition > Duration.zero) {
+        await _audioPlayer.seek(newPosition);
+      }
+
+      emit(state.copyWith(
+        originalAudioDuration: actualDuration,
+        wordStartTimes: wordStartTimes,
+        currentPosition: newPosition,
+        isLoading: false,
+        isPlaying: wasPlaying,
+        isPaused: !wasPlaying,
+      ));
+
+      if (wasPlaying) {
+        await _audioPlayer.play();
+        _startProgressTimer();
+      }
+
+      await TTSAudioStorageHelper.saveAudioRecording(
+        text: textToSpeak,
+        audioBytes: combinedAudioBytes,
+        textHash: TTSAudioStorageHelper.generateTextHash(
+          textToSpeak,
+          speechRate: state.speechRate,
+          voiceName: event.voice.name,
+          pitch: state.setPitch,
+          volume: state.setValume,
+        ),
+        speechRate: state.speechRate,
+        voiceName: event.voice.name,
+        pitch: state.setPitch,
+        volume: state.setValume,
+      );
+    } catch (e) {
+      print('Error switching voice: $e');
+      emit(state.copyWith(
+        isLoading: false,
+        isPlaying: false,
+        isPaused: true,
+        error: 'Error switching voice: $e',
+      ));
+    }
+  }
+
+  Future<void> generateAndCacheAudio(
+    String text,
+    Voice voice,
+    Duration currentPosition,
+    Emitter<TextToSpeechState> emit,
+  ) async {
+    try {
+      final ttsRequest = TTSRequest(
+        input: TextInput(text: text),
+        voice: VoiceSelectionParams(
+          languageCode: voice.languageCodes.first,
+          name: voice.name,
+        ),
+        audioConfig: AudioConfig(
+          audioEncoding: 'MP3',
+          speakingRate: state.speechRate,
+          pitch: state.setPitch,
+          volumeGainDb:
+              state.setValume != null ? (state.setValume * 20) - 10 : null,
+        ),
+      );
+
+      final audioContent = await _ttsRepo.textToSpeech(ttsRequest);
+      final audioBytes = base64Decode(audioContent);
+
+      await TTSAudioStorageHelper.saveAudioRecording(
+        text: text,
+        audioBytes: audioBytes,
+        textHash: TTSAudioStorageHelper.generateTextHash(
+          text,
+          speechRate: state.speechRate,
+          voiceName: voice.name,
+          pitch: state.setPitch,
+          volume: state.setValume,
+        ),
+        speechRate: state.speechRate,
+        voiceName: voice.name,
+        pitch: state.setPitch,
+        volume: state.setValume,
+      );
+
+      if (state.isPlaying) {
+        final existingRecording =
+            await TTSAudioStorageHelper.findExistingRecording(
+          text: text,
+          speechRate: state.speechRate,
+          voiceName: voice.name,
+          pitch: state.setPitch,
+          volume: state.setValume,
+        );
+
+        if (existingRecording != null) {
+          final audioFile = File(existingRecording['filePath']);
+          final currentPlaybackPosition = _audioPlayer.position;
+
+          await _audioPlayer.setAudioSource(AudioSource.file(audioFile.path),
+              initialPosition: currentPlaybackPosition);
+
+          Duration actualDuration =
+              await _audioPlayer.duration ?? Duration.zero;
+          List<Duration> wordStartTimes =
+              TTSAudioStorageHelper.calculateWordTimings(text, actualDuration);
+
+          emit(state.copyWith(
+            originalAudioDuration: actualDuration,
+            wordStartTimes: wordStartTimes,
+            isPlaying: true,
+          ));
+
+          await _audioPlayer.seek(currentPlaybackPosition);
+          await _audioPlayer.play();
+          _startProgressTimer();
+        }
+      }
+    } catch (e) {
+      print('Error generating cached audio: $e');
+    }
   }
 
   Future<void> clearAudioRecordings() async {
