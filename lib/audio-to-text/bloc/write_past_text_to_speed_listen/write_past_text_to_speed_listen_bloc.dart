@@ -1,22 +1,17 @@
 // // ignore_for_file: prefer_const_declarations, non_constant_identifier_names, unused_element, prefer_final_fields
 
-// ignore_for_file: prefer_final_fields, unused_field, unused_element, prefer_const_declarations, prefer_interpolation_to_compose_strings, avoid_print, await_only_futures, unnecessary_null_comparison, unused_local_variable, invalid_use_of_visible_for_testing_member, unnecessary_brace_in_string_interps, non_constant_identifier_names
+// ignore_for_file: prefer_final_fields, unused_field, unused_element, prefer_const_declarations, prefer_interpolation_to_compose_strings, avoid_print, await_only_futures, unnecessary_null_comparison, unused_local_variable, invalid_use_of_visible_for_testing_member, unnecessary_brace_in_string_interps, non_constant_identifier_names, depend_on_referenced_packages
 
 import 'dart:convert';
-import 'dart:developer';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:new_wall_paper_app/audio-to-text/bloc/write_past_text_to_speed_listen/write_past_text_to_speed_listen_bloc_event.dart';
 import 'package:new_wall_paper_app/audio-to-text/bloc/write_past_text_to_speed_listen/write_past_text_to_speed_listen_bloc_state.dart';
 import 'package:new_wall_paper_app/component/bottomsheet.dart';
-import 'package:new_wall_paper_app/component/loading_dialog.dart';
 import 'package:new_wall_paper_app/helper/schedule_storage_helper.dart';
 import 'package:new_wall_paper_app/helper/store_tts_audio.dart';
 import 'dart:async';
@@ -26,8 +21,6 @@ import 'package:new_wall_paper_app/audio-to-text/repo/tts_repo.dart';
 import 'package:new_wall_paper_app/res/app_url.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
-import 'package:permission_handler/permission_handler.dart';
-import 'dart:math' as math;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:media_scanner/media_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -785,7 +778,6 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
     }
   }
 
-
   void _onRenameFile(RenameFile event, Emitter<TextToSpeechState> emit) async {
     try {
       emit(state.copyWith(isRenaming: true));
@@ -1128,7 +1120,6 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
     ));
   }
 
-
   Future<void> _onSpeak(Speak event, Emitter<TextToSpeechState> emit) async {
     if (state.normarlText.isEmpty) return;
 
@@ -1318,7 +1309,6 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
       throw Exception('Error processing chunk $chunkIndex: $e');
     }
   }
-
 
   List<(String, int)> _splitTextIntoChunks(String text, int maxBytes) {
     List<(String, int)> chunks = [];
@@ -1703,7 +1693,6 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
     }
   }
 
-
   Future<void> _onSeekTo(SeekTo event, Emitter<TextToSpeechState> emit) async {
     try {
       Duration newPosition = _clampDuration(
@@ -1716,15 +1705,15 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
           _findWordIndexForTime(newPosition, state.wordStartTimes);
       bool wasPlaying = state.isPlaying;
 
-      if (wasPlaying) {
-        await _audioPlayer.pause();
-      }
+      // if (wasPlaying) {
+      //   await _audioPlayer.pause();
+      // }
 
       emit(state.copyWith(
         currentPosition: newPosition,
         currentWordIndex: newWordIndex,
-        isPlaying: false,
-        isPaused: true,
+        isPlaying: true,
+        isPaused: false,
       ));
 
       await _audioPlayer.seek(newPosition);
@@ -1800,7 +1789,6 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
     return state.wordTimings.length - 1;
   }
 
-  
   Widget buildHighlightedTextSpans(
       BuildContext context, String text, int currentWordIndex) {
     if (text.isEmpty || state.wordKeys.isEmpty) {
@@ -1894,7 +1882,6 @@ class TextToSpeechBloc extends Bloc<TextToSpeechEvent, TextToSpeechState> {
       ),
     );
   }
-
 
   String _addSpaceAfterWord(String word) {
     if (word.endsWith('.') ||

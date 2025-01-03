@@ -368,19 +368,13 @@ class _LinkReaderScreenState extends State<LinkReaderScreen> {
       );
       return;
     }
-    // // Show loading dialog
-    // showDialog(
-    //   context: context,
-    //   barrierDismissible: false,
-    //   builder: (BuildContext context) => const LoadingDialog(),
-    // );
     setState(() {
       _isLoading = true;
       _enterSomethingsummary = '';
     });
 
-    const String apiKey = Apis.cloudApi;
-    const String apiUrl = Apis.geminiProSummarizeApis;
+     String apiKey = Apis.cloudApi;
+     String apiUrl = Apis.geminiProSummarizeApis;
 
     try {
       final response = await http.post(
@@ -491,7 +485,7 @@ Please answer the question based on the context provided above.''';
 
       final response = await http.post(
         Uri.parse(
-            'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent'),
+            Apis.geminiProSummarizeApis),
         headers: {
           'Content-Type': 'application/json',
           'x-goog-api-key': Apis.cloudApi,

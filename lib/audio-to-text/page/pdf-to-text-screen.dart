@@ -359,9 +359,8 @@ class _PDFToTextScreenState extends State<PDFToTextScreen> {
       _enterSomethingsummary = '';
     });
 
-    const String apiKey = Apis.cloudApi;
-    const String apiUrl =
-        'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent';
+    String apiKey = Apis.cloudApi;
+    String apiUrl = Apis.geminiProSummarizeApis;
 
     try {
       final response = await http.post(
@@ -470,8 +469,7 @@ Please answer the question based on the context provided above.''';
       }
 
       final response = await http.post(
-        Uri.parse(
-            'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent'),
+        Uri.parse(Apis.geminiProSummarizeApis),
         headers: {
           'Content-Type': 'application/json',
           'x-goog-api-key': Apis.cloudApi,

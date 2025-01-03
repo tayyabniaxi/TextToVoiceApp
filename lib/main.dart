@@ -1,5 +1,7 @@
 // ignore_for_file: prefer_const_constructors
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -27,7 +29,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-   await dotenv.load(fileName: ".env");
+  
+   
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -37,8 +40,14 @@ Future<void> main() async {
 
   final prefs = await SharedPreferences.getInstance();
   final bool isFirstLaunch = prefs.getBool('isFirstLaunch') ?? true;
-
-  runApp(MyApp(isFirstLaunch: isFirstLaunch));
+ try {
+    await dotenv.load(fileName: ".env");
+    runApp(MyApp(isFirstLaunch: isFirstLaunch));
+  } catch (e) {
+    print(Directory.current.path);
+    print("Failed to load .env file: $e");
+  }
+ 
 }
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();

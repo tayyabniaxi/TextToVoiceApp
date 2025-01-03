@@ -1,26 +1,22 @@
 // ignore_for_file: prefer_const_constructors_in_immutables, unused_element, unused_local_variable, unused_field, non_constant_identifier_names, sort_child_properties_last, prefer_final_fields
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
-// import 'package:flutter_svg/svg.dart';
 import 'package:new_wall_paper_app/audio-to-text/bloc/write_past_text_to_speed_listen/write_past_text_to_speed_listen_bloc.dart';
 import 'package:new_wall_paper_app/audio-to-text/bloc/write_past_text_to_speed_listen/write_past_text_to_speed_listen_bloc_event.dart';
 import 'package:new_wall_paper_app/audio-to-text/bloc/write_past_text_to_speed_listen/write_past_text_to_speed_listen_bloc_state.dart';
-// import 'package:new_wall_paper_app/audio-to-text/page/link_reader_screen.dart';
+
 import 'package:new_wall_paper_app/audio-to-text/page/note_paid_screen.dart';
-// import 'package:new_wall_paper_app/audio-to-text/page/show-history.dart';
 import 'package:new_wall_paper_app/component/bottomsheet.dart';
 import 'package:new_wall_paper_app/component/button_widget.dart';
 import 'package:new_wall_paper_app/component/loading_dialog.dart';
 import 'package:new_wall_paper_app/component/time_format.dart';
 import 'package:new_wall_paper_app/helper/store_tts_audio.dart';
 import 'package:new_wall_paper_app/model/tts_model.dart';
-import 'package:new_wall_paper_app/res/app_url.dart';
 import 'package:new_wall_paper_app/res/font.dart';
 import 'package:new_wall_paper_app/style/app-color.dart';
 import 'package:new_wall_paper_app/res/app-icon.dart';
@@ -37,10 +33,7 @@ class WriteAndTextPage extends StatefulWidget {
   final DateTime? dates;
   final bool isConvertable;
 
-  // final String messageText;
   final String? bossName;
-  // final String messageSubject;
-  // final DateTime? messageTimestamp;
   final String? senderEmail;
   final String? receiverEmail;
   final String? profileImage;
@@ -96,10 +89,6 @@ class _WriteAndTextPageState extends State<WriteAndTextPage> {
   @override
   void dispose() {
     AudioStorageHelper.clearAllAudioRecordings();
-// context.read<TextToSpeechBloc>().add(ClearAudioRecordingsEvent());
-
-// // Or directly
-// AudioStorageHelper.clearAllAudioRecordings();
     _clearWordKeys();
     _controller.dispose();
     context.read<TextToSpeechBloc>().scrollController.dispose();
@@ -266,7 +255,6 @@ class _WriteAndTextPageState extends State<WriteAndTextPage> {
                       widget.isConvertable
                           ? InkWell(
                               onTap: () {
-                                // VoiceBottomSheetWidget.show(context);
                               },
                               child: SvgPicture.asset(
                                   "assets/icons/bx_file.svg",
@@ -1285,21 +1273,17 @@ class _WriteAndTextPageState extends State<WriteAndTextPage> {
 
             return StatefulBuilder(
               builder: (BuildContext context, StateSetter setState) {
-                // Create ordered map with "All" first
                 final orderedVoices = <String, List<Voice>>{};
                 final allVoices = <Voice>[];
                 final groupedVoices = <String, List<Voice>>{};
 
-                // First collect all voices and group them
                 for (var voice in state.availableVoices) {
                   final countryCode = voice.name.split('-')[1] ?? 'Other';
                   groupedVoices.putIfAbsent(countryCode, () => []).add(voice);
                   allVoices.add(voice);
                 }
 
-                // Add "ALL" first
                 orderedVoices['ALL'] = allVoices;
-                // Then add the rest of the grouped voices
                 orderedVoices.addAll(groupedVoices);
 
                 String initialCountry = 'ALL';
@@ -1331,7 +1315,7 @@ class _WriteAndTextPageState extends State<WriteAndTextPage> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
+                               const Text(
                                   'Select Voice',
                                   style: TextStyle(
                                     fontSize: 20,
@@ -1367,15 +1351,12 @@ class _WriteAndTextPageState extends State<WriteAndTextPage> {
                             child: SearchBars(
                               controller: searchController,
                               hint: "Search voice",
-                              // onChanged: (value) {
-                              //   setState(() {});  // Rebuild to filter voices
                               // },
                             ),
                           ),
 
                           height(size: 0.02),
 
-                          // Premium and Offline buttons
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
@@ -1404,7 +1385,6 @@ class _WriteAndTextPageState extends State<WriteAndTextPage> {
 
                           height(size: 0.01),
 
-                          // Language tabs
                           Container(
                             height: 35,
                             margin: const EdgeInsets.symmetric(vertical: 16),
@@ -1558,7 +1538,6 @@ class _WriteAndTextPageState extends State<WriteAndTextPage> {
                                                       Colors.grey[100],
                                                   onBackgroundImageError:
                                                       (_, __) {
-                                                    // Handle flag image load error
                                                   },
                                                   child: Text(
                                                     displayName[0],
@@ -1617,7 +1596,6 @@ class _WriteAndTextPageState extends State<WriteAndTextPage> {
                                           ),
                                           trailing: InkWell(
                                             onTap: () {
-                                              // Play sample audio
                                               context
                                                   .read<TextToSpeechBloc>()
                                                   .add(SelectVoiceEvent(voice));

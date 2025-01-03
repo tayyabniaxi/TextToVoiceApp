@@ -1,6 +1,5 @@
-// ignore_for_file: must_be_immutable, use_key_in_widget_constructors, library_private_types_in_public_api, unused_field, prefer_final_fields, avoid_print, unnecessary_string_interpolations, unused_element
+// ignore_for_file: must_be_immutable, use_key_in_widget_constructors, library_private_types_in_public_api, unused_field, prefer_final_fields, avoid_print, unnecessary_string_interpolations, unused_element, unnecessary_brace_in_string_interps, sized_box_for_whitespace
 
-import 'package:flutter_svg/svg.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -81,15 +80,6 @@ class _FileProcessorScreensState extends State<FileProcessorScreens> {
   bool isSummarizeText = false;
   String refreshContent = '';
 
-  // void _scrollToBottom() {
-  //   if (_scrollController.hasClients) {
-  //     _scrollController.animateTo(
-  //       _scrollController.position.maxScrollExtent,
-  //       duration: const Duration(milliseconds: 300),
-  //       curve: Curves.easeOut,
-  //     );
-  //   }
-  // }
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -143,20 +133,14 @@ class _FileProcessorScreensState extends State<FileProcessorScreens> {
       );
       return;
     }
-    // // Show loading dialog
-    // showDialog(
-    //   context: context,
-    //   barrierDismissible: false,
-    //   builder: (BuildContext context) => const LoadingDialog(),
-    // );
     setState(() {
       _isLoading = true;
       _enterSomethingsummary = '';
     });
 
-    const String apiKey = Apis.cloudApi;
-    const String apiUrl =
-        'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent';
+     String apiKey = Apis.cloudApi;
+     String apiUrl =
+        Apis.geminiProSummarizeApis;
 
     try {
       final response = await http.post(
@@ -211,96 +195,6 @@ class _FileProcessorScreensState extends State<FileProcessorScreens> {
     }
   }
 
-/*
-  Future<void> _handleUserMessage(String text) async {
-    if (text.isEmpty) return;
-
-    final messageText = text;
-    _askAnythingController.clear();
-
-    setState(() {
-      _messages.add(ChatMessage(
-        text: messageText,
-        isUser: true,
-        timestamp: DateTime.now(),
-      ));
-      _isLoading = true;
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToBottom();
-    });
-
-    try {
-      String prompt;
-      if (isSummarizeText && _enterSomethingsummary.isNotEmpty) {
-        prompt = '''Context: ${_enterSomethingsummary}
-
-Question: ${messageText}
-
-Please answer the question based on the context provided above.''';
-      } else {
-        prompt = messageText;
-      }
-
-      final response = await http.post(
-        Uri.parse(
-            'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent'),
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': Apis.cloudApi,
-        },
-        body: jsonEncode({
-          "contents": [
-            {
-              "parts": [
-                {"text": prompt}
-              ]
-            }
-          ],
-          "generationConfig": {
-            "temperature": 0.7,
-            "topK": 40,
-            "topP": 0.95,
-            "maxOutputTokens": 1024,
-          }
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final botResponse = data['candidates'][0]['content']['parts'][0]
-                ['text'] ??
-            'No response available';
-
-        setState(() {
-          _messages.add(ChatMessage(
-            text: botResponse,
-            isUser: false,
-            timestamp: DateTime.now(),
-          ));
-          _isLoading = false;
-        });
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _scrollToBottom();
-        });
-      } else {
-        throw Exception('Failed to get response: ${response.statusCode}');
-      }
-    } catch (e) {
-      setState(() {
-        _messages.add(ChatMessage(
-          text: 'Sorry, I encountered an error. Please try again.',
-          isUser: false,
-          timestamp: DateTime.now(),
-        ));
-        _isLoading = false;
-      });
-      print('Error details: $e');
-    }
-  }
-*/
 
   Future<void> _handleUserMessage(String text) async {
     if (text.isEmpty) return;
@@ -318,23 +212,22 @@ Please answer the question based on the context provided above.''';
     });
     _scrollToBottom();
     try {
-      // Determine which content to use as context
       String contextContent = '';
       if (isSummarizeText && _enterSomethingsummary.isNotEmpty) {
-        // Use summarized content if available
+    
         contextContent = _enterSomethingsummary;
       } else if (widget.content != null && widget.content!.isNotEmpty) {
-        // Use constructor content if available
+  
         contextContent = widget.content!;
       } else if (context.read<FileProcessorBloc>().isExtractContent) {
-        // Use extracted file content if available
+      
         final state = context.read<FileProcessorBloc>().state;
         if (state is FileProcessorSuccess) {
           contextContent = state.extractedText;
         }
       }
 
-      // Construct the prompt based on available content
+  
       String prompt;
       if (contextContent.isNotEmpty) {
         prompt = '''Context: $contextContent
@@ -348,7 +241,7 @@ Please answer the question based on the context provided above.''';
 
       final response = await http.post(
         Uri.parse(
-            'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent'),
+            Apis.geminiProSummarizeApis),
         headers: {
           'Content-Type': 'application/json',
           'x-goog-api-key': Apis.cloudApi,
@@ -458,15 +351,15 @@ Please answer the question based on the context provided above.''';
                                               size: 0.02),
                                         )
                                       : _enterSomethingMethod(),
-                      // space
+                    
                       widget.isOtherPage == true || isSummarizeText || isChat
                           ? Container()
                           : const SizedBox(height: 20),
-                      // button
+                    
                       widget.isEnableBtn == true || isSummarizeText || isChat
                           ? Container()
                           : _blueSummarizeButton2(context),
-                      // no data text
+                  
                       widget.isEnableBtn || isChat
                           ? Container()
                           : widget.isOtherPage == true || isSummarizeText
@@ -516,11 +409,10 @@ Please answer the question based on the context provided above.''';
                                   "assets/icons/Frame.png",
                                   height: heigh * 0.3,
                                 ),
-                      // other page content
                       widget.isEnableBtn == true || isSummarizeText || isChat
                           ? Container()
                           : _otherPageContent(),
-                      // divider
+                      
                       isChat ? height(size: 0.02) : Container(),
                       isChat
                           ? const Padding(
@@ -601,15 +493,6 @@ Please answer the question based on the context provided above.''';
         widget.isOtherPage == true || isSummarizeText || isChat
             ? Row(
                 children: [
-                  // InkWell(
-                  //   onTap: () {
-                  //     _isLoading ? null : _summarizeText(refreshContent);
-                  //   },
-                  //   child: const Icon(
-                  //     Icons.cached,
-                  //     color: Colors.black,
-                  //   ),
-                  // ),
                   TextButton(
                       onPressed: () {
                         final state = context.read<FileProcessorBloc>().state;

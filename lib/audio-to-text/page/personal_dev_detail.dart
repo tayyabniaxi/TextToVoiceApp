@@ -18,7 +18,6 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:math';
 
-
 abstract class QuotesEvent {}
 
 class FetchNewQuotes extends QuotesEvent {}
@@ -269,20 +268,13 @@ class _QuotesViewState extends State<QuotesView> {
       );
       return;
     }
-    // // Show loading dialog
-    // showDialog(
-    //   context: context,
-    //   barrierDismissible: false,
-    //   builder: (BuildContext context) => const LoadingDialog(),
-    // );
     setState(() {
       _isLoading = true;
       _enterSomethingsummary = '';
     });
 
-    const String apiKey = Apis.cloudApi;
-    const String apiUrl =
-        'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent';
+    String apiKey = Apis.cloudApi;
+    String apiUrl = Apis.geminiProSummarizeApis;
 
     try {
       final response = await http.post(

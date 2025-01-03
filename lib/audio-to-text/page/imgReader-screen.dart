@@ -1,4 +1,4 @@
-// ignore_for_file: use_key_in_widget_constructors, unused_field, prefer_final_fields
+// ignore_for_file: use_key_in_widget_constructors, unused_field, prefer_final_fields, prefer_const_constructors_in_immutables
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -352,8 +352,8 @@ class _CameraScreenState extends State<CameraScreen> {
       _enterSomethingsummary = '';
     });
 
-    const String apiKey = Apis.cloudApi;
-    const String apiUrl = Apis.geminiProSummarizeApis;
+     String apiKey = Apis.cloudApi;
+     String apiUrl = Apis.geminiProSummarizeApis;
 
     try {
       final response = await http.post(
@@ -464,7 +464,7 @@ Please answer the question based on the context provided above.''';
 
       final response = await http.post(
         Uri.parse(
-            'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent'),
+            Apis.geminiProSummarizeApis),
         headers: {
           'Content-Type': 'application/json',
           'x-goog-api-key': Apis.cloudApi,

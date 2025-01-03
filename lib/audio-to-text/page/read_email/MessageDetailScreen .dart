@@ -1,5 +1,5 @@
 // message_detail_screen.dart
-// ignore_for_file: unnecessary_string_interpolations, unused_field, prefer_final_fields
+// ignore_for_file: unnecessary_string_interpolations, unused_field, prefer_final_fields, unnecessary_null_comparison
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -15,64 +15,6 @@ import 'package:new_wall_paper_app/widget/clean_email_content_remove_specialChar
 import 'package:new_wall_paper_app/widget/common-text.dart';
 import 'package:new_wall_paper_app/widget/common.dart';
 import 'package:new_wall_paper_app/widget/height-widget.dart';
-
-import '../../../utils/utils copy.dart';
-
-// class MessageDetailScreen extends StatelessWidget {
-//   final String subject;
-//   final String body;
-
-//   const MessageDetailScreen(
-//       {Key? key, required this.subject, required this.body})
-//       : super(key: key);
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       bottomNavigationBar: Column(
-//         mainAxisSize: MainAxisSize.min,
-//         children: [
-//           ElevatedButton(
-//             onPressed: () {
-//               Navigator.push(
-//                 context,
-//                 MaterialPageRoute(
-//                   builder: (context) => WriteAndTextPage(
-//                     text: subject + body,
-//                     isText: false,
-//                   ),
-//                 ),
-//               );
-//             },
-//             child: const Text("Next"),
-//           )
-//         ],
-//       ),
-//       appBar: AppBar(title: Text('Message Detail')),
-//       body: Padding(
-//         padding: const EdgeInsets.all(16.0),
-//         child: Column(
-//           crossAxisAlignment: CrossAxisAlignment.start,
-//           children: [
-//             Text(
-//               subject,
-//               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-//             ),
-//             SizedBox(height: 10),
-//             Expanded(
-//               child: SingleChildScrollView(
-//                 child: Text(
-//                   body,
-//                   style: TextStyle(fontSize: 16),
-//                 ),
-//               ),
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }
 
 class MessageDetailScreen extends StatefulWidget {
   final String body;
@@ -121,31 +63,6 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
         VRemoveSpecialCharctorWidget().cleanEmailContent(widget.body);
 
     return Scaffold(
-      // bottomNavigationBar: Padding(
-      //   padding: const EdgeInsets.all(16.0),
-      //   child: ElevatedButton(
-      //     style: ElevatedButton.styleFrom(
-      //       minimumSize: const Size(double.infinity, 50),
-      //     ),
-      //     onPressed: () {
-      //       if (cleanedBody.contains("no body content") ||
-      //           cleanedBody.contains("No Body Content")) {
-      //         Utils.flushBarErrorMessage("No Content Exist", context);
-      //       } else {
-      //         Navigator.push(
-      //           context,
-      //           MaterialPageRoute(
-      //             builder: (context) => WriteAndTextPage(
-      //               text: "$cleanedBody",
-      //               isText: false,
-      //             ),
-      //           ),
-      //         );
-      //       }
-      //     },
-      //     child: const Text("Next"),
-      //   ),
-      // ),
       bottomNavigationBar: bottomsheet(context, cleanedBody),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -191,16 +108,7 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: ListView(
-          // crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Expanded(
-            //   child: SingleChildScrollView(
-            //     child: Text(
-            //       cleanedBody,
-            //       style: const TextStyle(fontSize: 16),
-            //     ),
-            //   ),
-            // ),
             Container(
               margin: EdgeInsets.symmetric(
                   horizontal: MediaQuery.of(context).size.width * 0.02),
@@ -454,8 +362,8 @@ class _MessageDetailScreenState extends State<MessageDetailScreen> {
       _enterSomethingsummary = '';
     });
 
-    const String apiKey = Apis.cloudApi;
-    const String apiUrl = Apis.geminiProSummarizeApis;
+    String apiKey = Apis.cloudApi;
+    String apiUrl = Apis.geminiProSummarizeApis;
 
     try {
       final response = await http.post(
@@ -564,8 +472,7 @@ Please answer the question based on the context provided above.''';
       }
 
       final response = await http.post(
-        Uri.parse(
-            'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent'),
+        Uri.parse(Apis.geminiProSummarizeApis),
         headers: {
           'Content-Type': 'application/json',
           'x-goog-api-key': Apis.cloudApi,
